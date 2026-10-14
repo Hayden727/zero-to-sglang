@@ -53,6 +53,7 @@ const chSidebar: DefaultTheme.SidebarItem[] = [
       { text: '第 8 章 RadixAttention 与前缀缓存（代码走读）', link: '/ch/part2/第8章_RadixAttention与前缀缓存_代码' },
       { text: '第 9 章 多进程与张量并行', link: '/ch/part2/第9章_多进程与张量并行' },
       { text: '第 10 章 投机解码', link: '/ch/part2/第10章_投机解码' },
+      { text: '第 10 章 投机解码（代码实现）', link: '/ch/part2/第10章_投机解码_代码' },
     ],
   },
   {
