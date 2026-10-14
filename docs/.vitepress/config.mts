@@ -44,6 +44,7 @@ const chSidebar: DefaultTheme.SidebarItem[] = [
       { text: '第 2 章 一个请求的旅程（概念）', link: '/ch/part2/第2章_一个请求的旅程' },
       { text: '第 2 章 一个请求的旅程（代码走读）', link: '/ch/part2/第2章_一个请求的旅程_代码' },
       { text: '第 3 章 前向与生成', link: '/ch/part2/第3章_前向与生成' },
+      { text: '第 3 章 前向与生成（代码实现）', link: '/ch/part2/第3章_前向与生成_代码' },
       { text: '第 4 章 KV Cache 优化', link: '/ch/part2/第4章_KVCache优化' },
       { text: '第 5 章 HTTP 服务与并发（概念）', link: '/ch/part2/第5章_HTTP服务与并发' },
       { text: '第 5 章 HTTP 服务与并发（代码走读）', link: '/ch/part2/第5章_HTTP服务与并发_代码' },

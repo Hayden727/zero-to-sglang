@@ -75,7 +75,7 @@
 | <strong>Part II — 从零手搓 Mini SGL</strong> | | |
 | [1. mini-sglang：推理引擎长什么样](course-material/ch/part2/第1章_mini-sglang：推理引擎长什么样.md) | 推理引擎的总体架构、模块划分、本部分的 roadmap | ✅ |
 | [2. **Inside SGLang: The Path of a Request**](course-material/ch/part2/第2章_一个请求的旅程.md) | 一个请求从进入到返回的完整生命周期 | ✅ |
-| 3. Your First 200 Lines: Forward Pass and Generation | 手写前向传播与自回归生成循环 | 🚧 |
+| [3. Your First 200 Lines: Forward Pass and Generation（概念）](course-material/ch/part2/第3章_前向与生成.md) · [代码实现](course-material/ch/part2/第3章_前向与生成_代码.md) | 手写 Qwen3 前向、生成循环与同权重验证 | 概念 ✅ / 代码 📝 |
 | 4. KV Cache: From O(n²) to O(n) | 缓存实现与注意力计算优化 | 🚧 |
 | [5. HTTP 服务与并发（概念）](course-material/ch/part2/第5章_HTTP服务与并发.md) · [代码走读](course-material/ch/part2/第5章_HTTP服务与并发_代码.md) | HTTP 基础与请求流程、并发隔离、流式返回与取消的实现 | ✅ |
 | 6. Continuous Batching and the Scheduler | 连续批处理与调度器设计 | 🚧 |
