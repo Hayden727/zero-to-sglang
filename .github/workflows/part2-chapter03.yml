@@ -5,6 +5,7 @@ on:
     paths:
       - 'examples/part2/chapter03/**'
       - 'course-material/ch/part2/第3章_前向与生成_代码.md'
+      - 'course-material/eng/part2/Chapter3_Forward-Pass-and-Generation_code.md'
       - '.github/workflows/part2-chapter03.yml'
   workflow_dispatch:
 

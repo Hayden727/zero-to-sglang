@@ -1,4 +1,4 @@
-"""第 3 章：只用 PyTorch 写 Qwen3 前向与生成；CPU、随机权重、无 KV Cache。"""
+"""Chapter 3: Qwen3 forward and generation in PyTorch; CPU, random weights, no KV cache."""
 
 from dataclasses import dataclass
 import math
@@ -44,7 +44,7 @@ class RMSNorm(nn.Module):
 
 
 def rope(x, theta):
-    # x: [B, H, T, D]；Qwen3 将最后一维分成两半做旋转。
+    # x: [B, H, T, D]; Qwen3 rotates the two halves of the last dimension.
     length, dim = x.shape[-2:]
     frequencies = theta ** (-torch.arange(0, dim, 2, device=x.device).float() / dim)
     angles = torch.arange(length, device=x.device)[:, None] * frequencies
@@ -76,7 +76,7 @@ class Attention(nn.Module):
         q = rope(self.q_norm(split_heads(self.q_proj)), self.theta)
         k = rope(self.k_norm(split_heads(self.k_proj)), self.theta)
         v = split_heads(self.v_proj)
-        k = k.repeat_interleave(self.groups, dim=1)  # GQA：多个 Q 头共享一组 K/V。
+        k = k.repeat_interleave(self.groups, dim=1)  # GQA: several Q heads share each KV head.
         v = v.repeat_interleave(self.groups, dim=1)
         scores = q @ k.transpose(-1, -2) / math.sqrt(self.head_dim)
         allowed = torch.ones(length, length, dtype=torch.bool, device=x.device).tril()
@@ -114,7 +114,7 @@ class Qwen3(nn.Module):
     def __init__(self, config=None):
         super().__init__()
         self.config = c = config or Config()
-        # 保留参考实现的权重名，方便用同一份权重比较 logits。
+        # Keep reference weight names so we can compare logits with identical weights.
         self.model = nn.Module()
         self.model.embed_tokens = nn.Embedding(c.vocab_size, c.hidden_size)
         self.model.layers = nn.ModuleList(Block(c) for _ in range(c.num_hidden_layers))
@@ -134,7 +134,7 @@ class Qwen3(nn.Module):
 
 @torch.inference_mode()
 def generate(model, prompt, max_new_tokens=8, eos_id=None, temperature=0.0):
-    """单请求生成；返回新增 token（含 EOS）。model 应先调用 eval()。"""
+    """Generate for one request; return new tokens including EOS. Call model.eval() first."""
     if not prompt or max_new_tokens < 0:
         raise ValueError("nonempty prompt and nonnegative output length required")
     if not math.isfinite(temperature) or temperature < 0:
@@ -145,7 +145,7 @@ def generate(model, prompt, max_new_tokens=8, eos_id=None, temperature=0.0):
     tokens = torch.tensor([prompt], dtype=torch.long, device=device)
     output = []
     for _ in range(max_new_tokens):
-        logits = model(tokens)[0, -1]  # 最后一行预测下一个 token。
+        logits = model(tokens)[0, -1]  # The last row predicts the next token.
         if temperature == 0:
             token = int(logits.argmax())
         else:
@@ -166,7 +166,7 @@ def main():
         logits = model(torch.tensor([[1, 2, 3]]))
     print("logits shape:", tuple(logits.shape))
     print("new token IDs:", generate(model, [1, 2, 3]))
-    print("随机权重只演示计算流程，输出不具有语言含义。")
+    print("Random weights demonstrate the computation; token IDs have no language meaning.")
 
 
 if __name__ == "__main__":

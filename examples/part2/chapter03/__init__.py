@@ -1,1 +1,1 @@
-"""第 3 章：前向与生成。"""
+"""Chapter 3: forward pass and generation."""

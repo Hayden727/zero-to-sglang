@@ -1,10 +1,10 @@
-# 第 3 章：前向与生成
+# Chapter 3: Forward Pass and Generation
 
-手写 Qwen3 前向、生成循环与同权重验证。本目录独立运行，不依赖其他章节示例。
+Hand-written Qwen3 forward pass, generation, and identical-weight checks. This example runs independently of the other chapters.
 
-[阅读中文教程](../../../course-material/ch/part2/第3章_前向与生成_代码.md)
+[English tutorial](../../../course-material/eng/part2/Chapter3_Forward-Pass-and-Generation_code.md) · [中文教程](../../../course-material/ch/part2/第3章_前向与生成_代码.md)
 
-在仓库根目录运行，使用 Python 3.12：
+Run from the repository root with Python 3.12:
 
 ```bash
 python3.12 -m venv examples/part2/chapter03/.venv
@@ -14,6 +14,6 @@ python examples/part2/chapter03/forward.py
 python -m pytest examples/part2/chapter03 -q
 ```
 
-CPU FP32、随机权重，支持 dense Qwen3 全量因果注意力与贪心/温度采样。没有 KV Cache、padding 或预训练权重加载。Transformers 仅用于测试参照。
+Uses random weights and CPU FP32. Supports dense Qwen3 with full causal attention, greedy decoding, and temperature sampling. No KV cache, padding, or pretrained weight loader. Transformers is used only as a test reference.
 
-默认运行和测试均不下载模型、不需要 GPU。首次安装依赖需要网络。
+The default example and tests need no model download or GPU. Installing dependencies for the first time needs network access.

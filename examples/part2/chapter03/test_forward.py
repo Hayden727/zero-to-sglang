@@ -1,4 +1,4 @@
-"""CPU 离线验证：同权重参考实现、因果性、生成边界。"""
+"""Offline CPU checks: identical-weight reference, causality, and generation boundaries."""
 
 from dataclasses import asdict
 
@@ -17,7 +17,7 @@ def deterministic_cpu():
 
 @pytest.mark.parametrize("tied", [False, True])
 def test_logits_match_transformers(tied):
-    # hidden_size 不必等于 num_attention_heads * head_dim。
+    # hidden_size need not equal num_attention_heads * head_dim.
     config = Config(hidden_size=24, tie_word_embeddings=tied)
     reference_config = Qwen3Config(**asdict(config), attention_dropout=0.0)
     reference_config._attn_implementation = "eager"
