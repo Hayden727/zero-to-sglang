@@ -1,149 +1,196 @@
-# Chapter 3 Forward Pass and Generation (Code Implementation)
+# Chapter 3 Forward Pass and Generation (Code Walkthrough)
 
-Given a sequence of token IDs, how does a model compute the next token and keep generating? This chapter turns the [concept article](./Chapter3_Forward-Pass-and-Generation.md) into a small Qwen3 model you can run on a CPU: embedding → Transformer Block → logits → new token.
+The [concept chapter](./Chapter3_Forward-Pass-and-Generation.md) introduced the path from token IDs to logits and autoregressive generation. This walkthrough follows mini-sglang's Qwen3 implementation, connecting embeddings, attention, the MLP, and sampling to concrete functions.
 
-We use random weights and implement dense Qwen3 with full causal attention. Each generation step recomputes the entire prefix so the relationship between a forward pass and generation stays visible. [Chapter 4](./Chapter4_KV-Cache-Optimization.md) covers incremental computation with a KV cache. This example runs independently and needs no model download.
+The reference is pinned to commit [9a91cfa](https://github.com/sgl-project/mini-sglang/tree/9a91cfafe754aa85daee49998176275667eb58f2). Code blocks are source excerpts or explicitly labeled teaching simplifications that should be read alongside the original files. They omit class initialization, weight loading, and GPU setup. First connect a forward pass to a generation step; Chapter 4 then introduces KV caching.
 
 ## 1 Learning Objectives
 
-1. Follow tensor shapes through Attention, the MLP, and residual connections.
-2. Generate tokens from the last row of logits and handle EOS and output limits.
-3. Check numerical results against a reference with identical weights, beyond checking shapes.
+After completing this chapter, you will be able to:
 
-## 2 Run the Example First
+1. Locate Qwen3's embedding, decoder layers, attention, and LM head.
+2. Explain Q/K/V, the causal mask, and residual connections through tensor shapes.
+3. Explain why generation reads the last position of each request and when it stops.
 
-Run all commands from the repository root. Use Python 3.12 and a CPU. The program requires PyTorch; Transformers and pytest are used for verification.
+## 2 Locate the Source
 
-```bash
-python3.12 -m venv examples/part2/chapter03/.venv
-source examples/part2/chapter03/.venv/bin/activate
-python -m pip install -r examples/part2/chapter03/requirements.txt
-python examples/part2/chapter03/forward.py
-```
+All paths below are relative to mini-sglang's `python/minisgl/`:
 
-The first output line is:
+| File and entry point | What to look for |
+| --- | --- |
+| `models/qwen3.py`: `Qwen3Model`, `Qwen3DecoderLayer` | The model forward pass and each layer's computation order |
+| `models/utils.py`: `RopeAttn`, `GatedMLP` | QKV projection, attention, and the gated MLP |
+| `layers/attention.py`: `AttentionLayer.forward` | Q/K normalization, RoPE, and the attention backend |
+| `layers/norm.py`: `RMSNormFused.forward` | Fused normalization and residual addition |
+| `layers/embedding.py`: `ParallelLMHead.forward` | Selecting prediction positions and computing vocabulary scores |
+| `engine/engine.py`, `engine/sample.py` | Running the forward pass and choosing the next token |
 
-```text
-logits shape: (1, 3, 64)
-```
+Read model computation before sampling. Chapter 6 covers how the scheduler organizes multiple requests.
 
-This means one request, three input positions, and 64 vocabulary entries. The second line prints eight new token IDs. Random weights have no learned language ability; focus on the shapes, computation order, and output length.
+## 3 Follow One Forward Pass
 
-The complete program is `examples/part2/chapter03/forward.py`. Read it in this order: `Qwen3.forward → Block.forward → Attention.forward → generate`.
+### 3.1 Enter the model with token IDs
 
-## 3 From Input IDs to Logits
-
-### 3.1 Start with the Shapes
-
-Let `B` be the batch size, `T` the sequence length, `C` the hidden size, `Hq` the number of query heads, `Hkv` the number of KV heads, and `D` the dimension of each head.
-
-| Computation | Output shape | Default single-request example |
-| --- | --- | --- |
-| Token IDs | `[B,T]` | `[1,3]` |
-| Embedding | `[B,T,C]` | `[1,3,32]` |
-| Q projection and head split | `[B,Hq,T,D]` | `[1,4,3,8]` |
-| K/V projections and head split | `[B,Hkv,T,D]` | `[1,2,3,8]` |
-| Attention scores | `[B,Hq,T,T]` | `[1,4,3,3]` |
-| Head merge and output projection | `[B,T,C]` | `[1,3,32]` |
-| Final normalization and LM Head | `[B,T,V]` | `[1,3,64]` |
-
-`head_dim` is configured separately: do not assume every Qwen3 configuration satisfies `C = Hq * D`. The output projection maps the concatenated heads back to dimension `C`.
-
-### 3.2 Four Steps Inside Attention
-
-Three linear layers produce Q, K, and V, then each token's vector is split into heads. Qwen3 applies RMSNorm to each Q and K head before using RoPE to encode position. RMSNorm normalizes along the last dimension. RoPE rotates the two halves of that dimension; V is not rotated.
-
-GQA lets several query heads share fewer KV heads. This example uses `repeat_interleave` to expand K/V to `Hq` heads for ordinary matrix multiplication. This makes the operation easy to read; an inference kernel can access shared KV heads directly.
-
-The core attention computation takes three steps:
+`Qwen3Model.forward` looks up embeddings, passes them through the decoder layers, and applies the final normalization:
 
 ```python
-scores = q @ k.transpose(-1, -2) / math.sqrt(self.head_dim)
+# models/qwen3.py: Qwen3Model.forward
+x = self.embed_tokens.forward(input_ids)
+residual: torch.Tensor | None = None
+for layer in self.layers.op_list:
+    x, residual = layer.forward(x, residual)
+return self.norm.forward(x, residual)[0]
+```
+
+Here, `input_ids` contains integer indices. The embedding replaces each index with a vector of length `hidden_size`. mini-sglang packs the tokens computed in the current step into a one-dimensional input, giving hidden states of shape `[N,C]`, where `N` is the total token count and `C` is the hidden dimension. The concept chapter's `[B,T,C]` is a regular batch layout used for explanation; keep the two representations distinct.
+
+### 3.2 Computation inside a decoder layer
+
+The body of `Qwen3DecoderLayer.forward` has five lines:
+
+```python
+# models/qwen3.py: Qwen3DecoderLayer.forward
+x, residual = self.input_layernorm.forward(x, residual)
+x = self.self_attn.forward(x)
+x, residual = self.post_attention_layernorm.forward(x, residual)
+x = self.mlp.forward(x)
+return x, residual
+```
+
+Why is there no explicit `x + attention(x)`? Addition happens inside `RMSNormFused`. On its first call, it saves the original `x` as the residual and returns the normalized value. Later calls add the current result to the residual and normalize it. The MLP residual addition is deferred to the next layer's input normalization, or to the model's final `self.norm` after the last layer.
+
+Expanded mathematically, the order is still `h = x + Attention(RMSNorm(x))`, followed by `out = h + MLP(RMSNorm(h))`. Passing both `x` and `residual` allows the implementation to fuse these operations.
+
+### 3.3 QKV, RoPE, and causal attention
+
+In `models/utils.py`, Qwen3 uses `RopeAttn` with `has_qk_norm=True`:
+
+```python
+# models/utils.py: RopeAttn.forward (memory-release statements omitted)
+qkv = self.qkv_proj.forward(x)
+o = self.attn.forward(qkv)
+return self.o_proj.forward(o)
+```
+
+`qkv_proj` combines three linear projections. `AttentionLayer.forward` splits the result into Q, K, and V, applies RMSNorm to each Q/K head's last dimension, and applies RoPE using token positions. V does not receive RoPE. The attention backend computes the result, and the output projection maps the Q heads back to dimension `C`.
+
+The same attention mathematics can be expanded in a regular layout as follows. **This is a teaching simplification, not the GPU backend's source**: assume Q/K normalization and RoPE have already been applied, with `q` shaped `[B,Hq,T,D]`, `k` and `v` shaped `[B,Hkv,T,D]`, and no padding or cache.
+
+```python
+import torch
+
+groups = q.shape[1] // k.shape[1]
+k = k.repeat_interleave(groups, dim=1)
+v = v.repeat_interleave(groups, dim=1)
+scores = q @ k.transpose(-1, -2) / q.shape[-1] ** 0.5
+T = q.shape[-2]
+allowed = torch.ones(T, T, dtype=torch.bool, device=q.device).tril()
 scores = scores.masked_fill(~allowed, float("-inf"))
-weights = scores.float().softmax(-1).to(x.dtype)
+weights = scores.float().softmax(dim=-1).to(q.dtype)
+attention = weights @ v
 ```
 
-`allowed` is a lower-triangular boolean matrix: row `i` can read only input positions `0..i`. Filling future positions with negative infinity makes their softmax weights zero. Finally, compute `weights @ v`, merge the heads, and apply the output projection.
+GQA requires `Hq` to be divisible by `Hkv`, allowing several Q heads to share K/V. Explicit repetition here makes the matrix operations easier to read. The lower-triangular mask lets position `i` access only positions `0..i`, never future tokens. `head_dim` is configured separately, so do not assume that `C = Hq * D` always holds.
 
-### 3.3 Blocks and the LM Head
+### 3.4 The gated MLP
 
-Each Block applies Attention followed by a gated MLP. Both operations receive normalized inputs and use residual connections:
+The core of `GatedMLP.forward` is:
 
 ```python
-x = x + self.self_attn(self.input_layernorm(x))
-return x + self.mlp(self.post_attention_layernorm(x))
+# models/utils.py: GatedMLP.forward (memory-release statements omitted)
+gate_up = self.gate_up_proj.forward(x)
+y = self.act_fn(gate_up)
+return self.down_proj.forward(y)
 ```
 
-The MLP computes `down_proj(silu(gate_proj(x)) * up_proj(x))`. It transforms features at each position independently; Attention exchanges information between tokens.
+For a Qwen3 configuration using SiLU, the merged projection produces gate and up components. `act_fn` computes `silu(gate) * up`, and the down projection returns to the hidden dimension. The MLP transforms each token's features; attention exchanges information between tokens.
 
-After the Blocks, a final RMSNorm and LM Head produce logits of shape `[B,T,V]`. This forward pass is implemented here; the Transformers model is used only as a reference in tests.
+## 4 From Logits to a Generation Loop
 
-## 4 Turn a Forward Pass into a Generation Loop
+### 4.1 Keep the last position of each request
 
-### 4.1 Why Read the Last Row?
-
-For input `[1,2,3]`, the last row of logits gives scores for the token after 3. Choose a token, append it to the input, and repeat:
+`Qwen3ForCausalLM.forward` passes model output to the LM head:
 
 ```python
-logits = model(tokens)[0, -1]
-token = int(logits.argmax())
-tokens = torch.cat((tokens, tokens.new_tensor([[token]])), dim=1)
+# models/qwen3.py: Qwen3ForCausalLM.forward
+output = self.model.forward(get_global_ctx().batch.input_ids)
+logits = self.lm_head.forward(output)
+return logits
 ```
 
-The complete `generate` function also appends the token to `output` and checks for EOS. Its return value contains only new tokens, including EOS if generated. With `max_new_tokens=0`, it returns an empty list without calling the model.
+Next, open `ParallelLMHead.forward`. During prefill, it uses `get_last_indices` to select each request's final hidden state before projecting to the vocabulary. Sampling therefore receives one logits row per request, rather than all `[B,T,V]` rows from the conceptual example.
 
-### 4.2 Greedy Decoding and Temperature Sampling
+For input `[1,2,3]`, the logits at position 2 predict the token after 3. Earlier positions describe earlier predictions and cannot continue the current prefix.
 
-With `temperature=0`, choose the highest-scoring token. With a positive temperature, compute `softmax(logits / temperature)` and sample from that distribution. Start Python from the repository root and try:
+### 4.2 Put one step into a loop
+
+The following is a **single-request teaching simplification without KV caching**, connecting the concept chapter to the engine. `forward_all(tokens)` represents an initialized model: it takes a nonempty `[1,T]` integer tensor and returns `[1,T,V]` logits for all positions. It is not a mini-sglang API. The model should already be in evaluation mode, and `max_new_tokens` must be a nonnegative integer.
 
 ```python
-from examples.part2.chapter03.forward import Qwen3, generate
+import torch
 
-model = Qwen3().eval()
-print(generate(model, [1, 2, 3], max_new_tokens=5, temperature=0.8))
+@torch.inference_mode()
+def generate(forward_all, tokens, max_new_tokens, eos_id=None):
+    output = []
+    for _ in range(max_new_tokens):
+        logits = forward_all(tokens)[0, -1]
+        token = int(logits.argmax())
+        output.append(token)
+        tokens = torch.cat((tokens, tokens.new_tensor([[token]])), dim=1)
+        if token == eos_id:
+            break
+    return output
 ```
 
-The concept article explains Top-k and Top-p; this example keeps the two minimal generation paths above. `eval()` selects evaluation mode, while `inference_mode()` disables gradient recording. They serve different purposes.
+Each iteration runs a forward pass, chooses a token, and appends it to the prefix. The function returns newly generated tokens, including EOS; a zero output limit makes no model calls. Recomputing the full prefix exposes the repeated work that KV caching removes in the next chapter.
 
-### 4.3 What Still Gets Recomputed?
+### 4.3 Find sampling in the engine
 
-The first generation step receives three tokens, the second four, and the third five. Every step recomputes the historical tokens' Q/K/V and Block outputs. This straightforward but inefficient implementation provides a correctness baseline for the KV cache in the next chapter.
+The real implementation distributes the loop across the scheduler and engine. After computing logits, `Engine.forward_batch` calls `Sampler.sample`. This excerpt retains its two selection paths:
 
-## 5 Verify Results and Compare the Source
-
-```bash
-python -m pytest examples/part2/chapter03 -q
+```python
+# engine/sample.py: Sampler.sample (profiling context omitted)
+if args.temperatures is None:
+    return torch.argmax(logits, dim=-1)
+return sample_impl(logits.float(), args.temperatures, args.top_k, args.top_p)
 ```
 
-The tests copy the weights of a random Qwen3 model from Transformers `4.57.1` into this implementation, compare CPU FP32 logits with `atol=2e-6, rtol=2e-5`, and compare eight steps of greedy generation. Another test changes only the final two input tokens and checks that logits at the first two positions stay unchanged, verifying the causal mask.
+An entirely greedy batch takes argmax directly; other batches use the temperature and Top-k/Top-p sampling path. Sampling chooses tokens, while the scheduler handles length limits and EOS. `eval()` controls layer behavior during inference; `inference_mode()` disables gradient-related recording. They serve different purposes.
 
-The tests also cover tied weights, EOS, zero output, and the context limit. Passing these checks establishes agreement for the supported configurations and paths. The example does not load pretrained weights or implement padding, sliding attention, RoPE scaling, or a KV cache.
+## 5 Check Shapes and Causality
 
-In the pinned Transformers source linked below, find `Qwen3Attention`, `Qwen3MLP`, and `Qwen3DecoderLayer` and map their computations to this chapter. Compare the mathematical steps first, then read the cache handling and backend selection code.
+Work through a regular-layout example on paper: `B=1,T=3,C=32,Hq=4,Hkv=2,D=8,V=64`. This table describes the teaching snippet in Section 3.3, rather than the engine's packed layout.
 
-The course site includes the runnable file directly so there is only one complete implementation to maintain. On GitHub, open the source under `examples/part2/chapter03/`.
+| Stage | Tensor shape |
+| --- | --- |
+| Input / embedding | `[1,3]` / `[1,3,32]` |
+| Q / original K and V | `[1,4,3,8]` / `[1,2,3,8]` |
+| Attention scores | `[1,4,3,3]` |
+| All-position logits / next-token scores | `[1,3,64]` / `[1,64]` |
 
-::: details Complete program: forward.py
-
-<<< @/examples/part2/chapter03/forward.py
-
-:::
+Check three relationships: changing future input must not change earlier outputs; each generation step appends one token; generation stops at the length limit or a confirmed EOS. Then identify which all-position computations the LM head avoids by selecting the final positions.
 
 ## 6 Summary and Exercises
 
 ### 6.1 Summary
 
-A forward pass turns token IDs into logits at each position. The generation loop repeatedly reads the last row, chooses a new token, and appends it to the prefix. Once this flow is clear, use identical-weight comparisons and causality tests to check the Attention details.
+A forward pass computes prediction scores through embeddings, decoder layers, and the LM head. Generation selects a token from the final position and updates the prefix. mini-sglang organizes these computations with packed input, fused residual operations, and final-position selection. Connect each mathematical step to its tensor layout as you read.
 
 ### 6.2 Exercises
 
-1. If the input shape is `[2,5]` and the vocabulary has 64 entries, what is the logits shape? Which row continues generation?
-2. Which test should fail if you remove the causal mask, and why?
-3. Change `num_key_value_heads` from 2 to 1. Which tensor shapes change and which stay the same?
-4. What does the generation loop recompute? Which computations can a KV cache avoid?
+1. Why does mini-sglang's prefill LM head not need a vocabulary projection at every input position?
+2. Where does residual addition happen if it is absent from `Qwen3DecoderLayer.forward`?
+3. Which shapes in Section 5 change if `Hkv` decreases from 2 to 1?
+4. Without the causal mask, which output positions could be affected by changes to future tokens?
+5. What does generation without caching recompute, and which results could be saved?
 
 ## References
 
-- [Transformers v4.57.1: Qwen3 forward implementation](https://github.com/huggingface/transformers/blob/v4.57.1/src/transformers/models/qwen3/modeling_qwen3.py)
-- [Chapter 3: Forward Pass and Generation concepts](./Chapter3_Forward-Pass-and-Generation.md)
+- [mini-sglang: Qwen3 model](https://github.com/sgl-project/mini-sglang/blob/9a91cfafe754aa85daee49998176275667eb58f2/python/minisgl/models/qwen3.py)
+- [mini-sglang: attention and MLP](https://github.com/sgl-project/mini-sglang/blob/9a91cfafe754aa85daee49998176275667eb58f2/python/minisgl/models/utils.py)
+- [mini-sglang: attention layer](https://github.com/sgl-project/mini-sglang/blob/9a91cfafe754aa85daee49998176275667eb58f2/python/minisgl/layers/attention.py)
+- [mini-sglang: fused normalization](https://github.com/sgl-project/mini-sglang/blob/9a91cfafe754aa85daee49998176275667eb58f2/python/minisgl/layers/norm.py)
+- [mini-sglang: embedding and LM head](https://github.com/sgl-project/mini-sglang/blob/9a91cfafe754aa85daee49998176275667eb58f2/python/minisgl/layers/embedding.py)
+- [mini-sglang: engine forward pass](https://github.com/sgl-project/mini-sglang/blob/9a91cfafe754aa85daee49998176275667eb58f2/python/minisgl/engine/engine.py)
+- [mini-sglang: sampling](https://github.com/sgl-project/mini-sglang/blob/9a91cfafe754aa85daee49998176275667eb58f2/python/minisgl/engine/sample.py)
 - [Chapter 4: KV Cache Optimization](./Chapter4_KV-Cache-Optimization.md)

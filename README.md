@@ -76,7 +76,7 @@
 | <strong>Part II — Build Your Own Mini SGL</strong> | | |
 | [1. mini-sglang: What an Inference Engine Looks Like](course-material/eng/part2/Chapter1_mini-sglang-What-an-Inference-Engine-Looks-Like.md) | Overall architecture of an inference engine, module breakdown, roadmap for this part | ✅ |
 | [2. **Inside SGLang: The Path of a Request**](course-material/eng/part2/Chapter2_Inside-SGLang.md) | The full lifecycle of a request from arrival to response | ✅ |
-| [3. Your First 200 Lines: Forward Pass and Generation (Concepts)](course-material/eng/part2/Chapter3_Forward-Pass-and-Generation.md) · [Code Implementation](course-material/eng/part2/Chapter3_Forward-Pass-and-Generation_code.md) | Hand-written Qwen3 forward pass, generation, and identical-weight checks | Concepts ✅ / Code 📝 |
+| [3. Your First 200 Lines: Forward Pass and Generation (Concepts)](course-material/eng/part2/Chapter3_Forward-Pass-and-Generation.md) · [Code Walkthrough](course-material/eng/part2/Chapter3_Forward-Pass-and-Generation_code.md) | A source walkthrough of embeddings, attention, the LM head, and generation | Concepts ✅ / Code 📝 |
 | 4. KV Cache: From O(n²) to O(n) | Implementing the cache and optimizing attention computation | 🚧 |
 | [5. HTTP and Concurrent Requests (Concepts)](course-material/eng/part2/Chapter5_HTTP-and-Concurrent-Requests.md) · [Code Walkthrough](course-material/eng/part2/Chapter5_HTTP-and-Concurrent-Requests_code.md) | HTTP basics and request flow; implementing isolation, streaming, and cancellation | ✅ |
 | 6. Continuous Batching and the Scheduler | Continuous batching and scheduler design | 🚧 |
