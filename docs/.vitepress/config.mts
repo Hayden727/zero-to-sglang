@@ -132,6 +132,7 @@ const engSidebar: DefaultTheme.SidebarItem[] = [
       { text: 'Chapter 8 RadixAttention and Prefix Caching (Code Walkthrough)', link: '/eng/part2/Chapter8_RadixAttention-and-Prefix-Caching_code' },
       { text: 'Chapter 9 Multi-process and Tensor Parallelism', link: '/eng/part2/Chapter9_Multi-process-and-Tensor-Parallelism' },
       { text: 'Chapter 10 Speculative Decoding', link: '/eng/part2/Chapter10_Speculative-Decoding' },
+      { text: 'Chapter 10 Speculative Decoding (Code Implementation)', link: '/eng/part2/Chapter10_Speculative-Decoding_code' },
     ],
   },
   {

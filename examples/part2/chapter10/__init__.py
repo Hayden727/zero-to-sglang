@@ -1,1 +1,1 @@
-"""第 10 章：投机解码。"""
+"""Chapter 10: speculative decoding."""

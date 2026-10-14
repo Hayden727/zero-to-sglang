@@ -1,4 +1,4 @@
-"""第 10 章：线性投机解码；用可手算的条件概率表代替神经网络。"""
+"""Chapter 10: linear speculative decoding with small conditional probability tables."""
 
 from dataclasses import dataclass
 import math
@@ -6,7 +6,7 @@ import random
 
 
 class TableModel:
-    """table[i][j] = P(下一个 token 为 j | 当前 token 为 i)。"""
+    """table[i][j] = P(next token is j | current token is i)."""
 
     def __init__(self, table):
         self.table = table
@@ -17,7 +17,7 @@ class TableModel:
             raise ValueError("each row must be a probability distribution over the vocabulary")
 
     def __call__(self, tokens):
-        # 第 i 行只读取 tokens[i]，因此不会看到后面的候选。
+        # Row i reads only tokens[i], so it cannot see later candidates.
         return [self.table[token] for token in tokens]
 
 
@@ -45,7 +45,7 @@ class Stats:
 
 def speculative_generate(target, draft, prompt, max_new_tokens=8, draft_steps=3,
                          eos_id=None, sample=False, rng=None):
-    """返回 (新增 tokens, 计数)；两个模型须使用同一套 token ID 含义。"""
+    """Return (new tokens, stats); both models must use the same token ID meanings."""
     if not prompt or max_new_tokens < 0 or draft_steps < 1:
         raise ValueError("nonempty prompt, nonnegative length and positive draft_steps required")
     if target.vocab_size != draft.vocab_size:
@@ -68,9 +68,9 @@ def speculative_generate(target, draft, prompt, max_new_tokens=8, draft_steps=3,
             proposals.append(token)
             draft_probs.append(q)
             if token == eos_id:
-                break  # 草稿 EOS 也要经过验证，不能在此结束请求。
+                break  # A draft EOS still needs verification before ending the request.
 
-        # 前缀长 L、草稿长 k：从 L-1 开始，恰好有 k+1 行。
+        # Prefix length L, draft length k: starting at L-1 gives exactly k+1 rows.
         verification = target(tokens + proposals)[len(tokens) - 1:]
         stats.target_calls += 1
         stats.proposed += len(proposals)
@@ -89,16 +89,16 @@ def speculative_generate(target, draft, prompt, max_new_tokens=8, draft_steps=3,
             else:
                 if commit(replacement):
                     return output, stats
-                break  # 后面的草稿条件已失效，下一轮从纠正后的前缀重新开始。
+                break  # Later draft conditionals are invalid; restart from the corrected prefix.
         else:
-            # for 没有 break：草稿全部接受，最后一行再给一个 bonus token。
+            # No break: all proposals were accepted; use the final row for a bonus token.
             if commit(pick(verification[-1], sample, rng)):
                 return output, stats
     return output, stats
 
 
 def greedy_generate(model, prompt, max_new_tokens, eos_id=None):
-    """逐 token 的目标模型基线，用于验证投机贪心输出。"""
+    """Target-only, one-token-at-a-time baseline for checking speculative greedy output."""
     tokens, output = list(prompt), []
     for _ in range(max_new_tokens):
         token = pick(model(tokens)[-1], False, None)
@@ -118,7 +118,7 @@ def main():
     print(f"target_calls={stats.target_calls}, accepted/proposed={stats.accepted}/{stats.proposed}")
     sampled, _ = speculative_generate(target, draft, [0], sample=True, rng=random.Random(7))
     print("sampled:", sampled)
-    print("调用次数用于理解算法，不代表实测加速比。")
+    print("Call counts illustrate the algorithm; they are not a measured speedup.")
 
 
 if __name__ == "__main__":

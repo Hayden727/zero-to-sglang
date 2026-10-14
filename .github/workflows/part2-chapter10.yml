@@ -5,6 +5,7 @@ on:
     paths:
       - 'examples/part2/chapter10/**'
       - 'course-material/ch/part2/第10章_投机解码_代码.md'
+      - 'course-material/eng/part2/Chapter10_Speculative-Decoding_code.md'
       - '.github/workflows/part2-chapter10.yml'
   workflow_dispatch:
 

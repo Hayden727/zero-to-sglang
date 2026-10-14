@@ -1,4 +1,4 @@
-"""独立检查贪心语义、条件位置、EOS 和随机序列分布。"""
+"""Check greedy outputs, conditioning positions, EOS, and the sampled sequence distribution."""
 
 from collections import Counter
 import random
@@ -28,7 +28,7 @@ class SpeculativeTests(unittest.TestCase):
                 self.offset = offset
 
             def __call__(self, tokens):
-                # 依赖整个前缀，避免仅用一阶 Markov 模型漏掉条件位置错误。
+                # Use the full prefix to catch conditioning errors a first-order model might miss.
                 return [[float(v == (sum(tokens[:i + 1]) + i + self.offset) % 3)
                          for v in range(3)] for i in range(len(tokens))]
 
@@ -46,7 +46,7 @@ class SpeculativeTests(unittest.TestCase):
             def run(model, draft, prompt, limit, steps=3, eos=None):
                 return speculative_generate(model, draft, prompt, limit, steps, eos,
                                             sample, random.Random(7))[0]
-            # 草稿 EOS 被拒绝；纠正 EOS；接受 EOS；bonus EOS。
+            # Rejected draft EOS; correction EOS; accepted EOS; bonus EOS.
             self.assertEqual(run(target, wrong, [1], 3, eos=0), [1, 1, 1])
             self.assertEqual(run(target, wrong, [0], 5, eos=1), [1])
             self.assertEqual(run(target, target, [0], 5, eos=1), [1])
