@@ -83,7 +83,7 @@
 | [7. Paged KV Cache and Memory Management (Concepts)](course-material/eng/part2/Chapter7_Paged-KV-Cache-and-Memory-Management.md) | Paged KV Cache and GPU memory management | ✅ |
 | [8. RadixAttention and Prefix Caching (Concepts)](course-material/eng/part2/Chapter8_RadixAttention-and-Prefix-Caching.md) · [Code Walkthrough](course-material/eng/part2/Chapter8_RadixAttention-and-Prefix-Caching_code.md) | RadixAttention and prefix caching | ✅ |
 | 9. [Multi-process & Tensor Parallelism(Concepts)](course-material/eng/part2/Chapter9_Multi-process-and-Tensor-Parallelism.md) · [Code Walkthrough](course-material/eng/part2/Chapter9_Multi-process-and-Tensor-Parallelism_code.md)  | Multi-process execution and tensor parallelism | ✅ |
-| 10. Speculative Decoding | Speculative decoding | 🚧 |
+| [10. Speculative Decoding (Concepts)](course-material/eng/part2/Chapter10_Speculative-Decoding.md) · [Code Walkthrough PR](https://github.com/datawhalechina/zero-to-sglang/pull/89) | Drafting and verification, greedy and sampling-based acceptance, rejection correction, and performance tradeoffs | Concepts ✅ / Code PR 📝 |
 | <strong>Part III — Advanced Inference Technique (deep into the real SGLang)</strong> | | |
 | [1. **Attention Backends (FlashInfer / Triton / FA3 / FlashMLA)**](course-material/eng/part3/Chapter1_Attention-Backends.md) | Backend responsibilities, tiled Attention, implementation tradeoffs, and selection | ✅ |
 | 2. **Quantization and Low-Precision Inference** | Quantization and low-precision inference | 🚧 |
