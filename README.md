@@ -24,7 +24,7 @@
 
 ---
 
-> **Course status**: Part 0, Part I, Chapters 1–2, 5, and 8 of Part II, and Chapter 3 of Part III (Hierarchical Caching) are complete in both English and Chinese. The course is still under development. You can switch to [简体中文](./README_zh.md) at any time. Want to help? See [Contributing](#-contributing).
+> **Course status**: Part 0, Part I, Chapters 1–5 and 8 of Part II, and Chapters 1 and 3 of Part III (Attention Backends and Hierarchical Caching) are complete in both English and Chinese. The course is still under development. You can switch to [简体中文](./README_zh.md) at any time. Want to help? See [Contributing](#-contributing).
 
 ## 🎯 About
 
@@ -75,17 +75,17 @@
 | [5. Introduction to Benchmark](course-material/eng/part1/Chapter5_Introduction_to_Benchmark.md) | Core metrics such as TTFT / TPOT / ITL / Goodput, percentiles and tail latency, how to design, run and read a benchmark | ✅ |
 | <strong>Part II — Build Your Own Mini SGL</strong> | | |
 | [1. mini-sglang: What an Inference Engine Looks Like](course-material/eng/part2/Chapter1_mini-sglang-What-an-Inference-Engine-Looks-Like.md) | Overall architecture of an inference engine, module breakdown, roadmap for this part | ✅ |
-| [2. **Inside SGLang: The Path of a Request**](course-material/eng/part2/Chapter2_Inside-SGLang.md) | The full lifecycle of a request from arrival to response | ✅ |
-| 3. Your First 200 Lines: Forward Pass and Generation | Hand-writing the forward pass and the autoregressive generation loop | 🚧 |
-| 4. KV Cache: From O(n²) to O(n) | Implementing the cache and optimizing attention computation | 🚧 |
+| [2. **Inside SGLang: The Path of a Request** (Concepts)](course-material/eng/part2/Chapter2_Inside-SGLang.md) · [Code Walkthrough](course-material/eng/part2/Chapter2_Inside-SGLang_code.md) | The full lifecycle of a request from arrival to response | ✅ |
+| [3. Your First 200 Lines: Forward Pass and Generation (Concepts)](course-material/eng/part2/Chapter3_Forward-Pass-and-Generation.md) · [Code Walkthrough](course-material/eng/part2/Chapter3_Forward-Pass-and-Generation_code.md) | A source walkthrough of embeddings, attention, the LM head, and generation | ✅ |
+| [4. KV Cache: From O(n²) to O(n) (Concepts)](course-material/eng/part2/Chapter4_KV-Cache-Optimization.md) · [Code Walkthrough](course-material/eng/part2/Chapter4_KV-Cache-Optimization_code.md) | Implementing the cache and optimizing attention computation | ✅ |
 | [5. HTTP and Concurrent Requests (Concepts)](course-material/eng/part2/Chapter5_HTTP-and-Concurrent-Requests.md) · [Code Walkthrough](course-material/eng/part2/Chapter5_HTTP-and-Concurrent-Requests_code.md) | HTTP basics and request flow; implementing isolation, streaming, and cancellation | ✅ |
-| 6. Continuous Batching and the Scheduler | Continuous batching and scheduler design | 🚧 |
-| 7. Paged KV Cache and Memory Management | Paged KV Cache and GPU memory management | 🚧 |
-| [8. RadixAttention and Prefix Caching (Concepts)](course-material/eng/part2/Chapter8_RadixAttention-and-Prefix-Caching.md) · [Code Walkthrough](course-material/eng/part2/Chapter8_RadixAttention-and-Prefix-Caching_code.md)  | RadixAttention and prefix caching | ✅ |
-| 9. Multi-process & Tensor Parallelism | Multi-process execution and tensor parallelism | 🚧 |
-| [10. Speculative Decoding (Concepts)](course-material/eng/part2/Chapter10_Speculative-Decoding.md) · [Code Walkthrough](course-material/eng/part2/Chapter10_Speculative-Decoding_code.md) | A code walkthrough of drafting, verification, acceptance, and rejection correction | Concepts 🚧 / Code 📝 |
+| [6. Continuous Batching and the Scheduler (Concepts)](course-material/eng/part2/Chapter6_Continuous-Batching-and-the-Scheduler.md) · [Code Walkthrough](course-material/eng/part2/Chapter6_Continuous-Batching-and-the-Scheduler_code.md) | Continuous batching, scheduler state, resource limits, and latency/throughput tradeoffs | ✅ |
+| [7. Paged KV Cache and Memory Management (Concepts)](course-material/eng/part2/Chapter7_Paged-KV-Cache-and-Memory-Management.md) | Paged KV Cache and GPU memory management | ✅ |
+| [8. RadixAttention and Prefix Caching (Concepts)](course-material/eng/part2/Chapter8_RadixAttention-and-Prefix-Caching.md) · [Code Walkthrough](course-material/eng/part2/Chapter8_RadixAttention-and-Prefix-Caching_code.md) | RadixAttention and prefix caching | ✅ |
+| 9. [Multi-process & Tensor Parallelism(Concepts)](course-material/eng/part2/Chapter9_Multi-process-and-Tensor-Parallelism.md) · [Code Walkthrough](course-material/eng/part2/Chapter9_Multi-process-and-Tensor-Parallelism_code.md)  | Multi-process execution and tensor parallelism | ✅ |
+| [10. Speculative Decoding (Concepts)](course-material/eng/part2/Chapter10_Speculative-Decoding.md) · [Code Walkthrough](course-material/eng/part2/Chapter10_Speculative-Decoding_code.md) | Drafting and verification, greedy and sampling-based acceptance, rejection correction, and performance tradeoffs | ✅ |
 | <strong>Part III — Advanced Inference Technique (deep into the real SGLang)</strong> | | |
-| 1. **Attention Backends (FlashInfer / Triton / FA3 / FlashMLA) and CUDA Graph** | Comparing mainstream attention backends, and CUDA Graph | 🚧 |
+| [1. **Attention Backends (FlashInfer / Triton / FA3 / FlashMLA)**](course-material/eng/part3/Chapter1_Attention-Backends.md) | Backend responsibilities, tiled Attention, implementation tradeoffs, and selection | ✅ |
 | 2. **Quantization and Low-Precision Inference** | Quantization and low-precision inference | 🚧 |
 | [3. **Hierarchical Caching**](course-material/eng/part3/Chapter3_Hierarchical-Caching.md) | L1/L2/L3 cache tiers, prefix matching, backup and restoration, prefetching and performance tradeoffs | ✅ |
 | 4. **Scaling Out: DP Attention, EP, PP** | Scaling out: DP Attention / EP / PP | 🚧 |
